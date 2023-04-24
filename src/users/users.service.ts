@@ -14,8 +14,11 @@ export class UsersService {
     }
 
     async findOne(id: number){
-        const user = await this.repo.findOneBy({id});
+        if(!id){ //se o id recebido for null, tem que retornar null de cara, não é pra tentar encontrar usuário nenhum
+            throw new NotFoundException("Usuário não encontrado.");
+        }
 
+        const user = await this.repo.findOneBy({id});
         if(!user){
             throw new NotFoundException("Usuário não encontrado.");
         }

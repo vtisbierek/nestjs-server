@@ -7,7 +7,8 @@ import {
     Body,
     Param,
     Query,
-    NotFoundException
+    NotFoundException,
+    Session,
 } from '@nestjs/common';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
@@ -15,23 +16,50 @@ import { UsersService } from './users.service';
 import { Serialize } from 'src/interceptors/serialize.interceptor';
 import { UserDto } from './dtos/user.dto';
 import { AuthService } from './auth.service';
+import {CurrentUser} from "../users/decorators/current-user.decorator";
+import {User} from "../users/users.entity";
 
-@Serialize(UserDto) //ao invés de colocar meu interceptor em cima de cada request handler individualmente, posso colocar ele em cima do controlador inteiro e garantir que seja aplicado para todos os request handlers do controlador
 @Controller('auth')
+@Serialize(UserDto) //ao invés de colocar meu interceptor em cima de cada request handler individualmente, posso colocar ele em cima do controlador inteiro e garantir que seja aplicado para todos os request handlers do controlador
+//@UseInterceptors(CurrentUserInterceptor) //aqui eu aplico o interceptor que pega o usuário da sessão e insere como currentUser nas requests (porém dessa forma esse interceptor está aplicado apenas a esse controller, se eu tiver mais controllers, tenho que aplicar neles também, então vou fazer um outro jeito, aplicando esse interceptor globalmente, para todos os meus controllers)
 export class UsersController {
     constructor(
         private usersService: UsersService,
         private authService: AuthService
     ){}
 
+    @Get("/usuario")
+    mostraUsuario(@Session() session: any){
+        return this.usersService.findOne(session.userId);
+    }
+
+    @Get("/signedin")
+    getSignedInUser(@CurrentUser() user: User){ //e então meu param decorator consegue pegar o currentUser da sessão e me informar aqui
+        if(!user){
+            throw new NotFoundException("Usuário não encontrado.");  
+        }
+        return user;
+    }
+
     @Post("/signup")
-    createUser(@Body() body: CreateUserDto){
-        return this.authService.signup(body.email, body.password);
+    async createUser(@Body() body: CreateUserDto, @Session() session: any){
+        const user = await this.authService.signup(body.email, body.password);
+        session.userId = user.id; //eu posso simplesmente criar atributos pra minha session e o cookie-session vai encriptografar e incluir no cookie da sessão (no caso, aqui eu criei um atributo chamado userId e atribuí a ele o id do usuário que está logado)
+        console.log("usuário na sessão: " + session.userId);
+        
+        return user; //agora sim eu retorno o user
     }
 
     @Post("/signin")
-    authenticateUser(@Body() body: CreateUserDto){
-        return this.authService.signin(body.email, body.password);
+    async authenticateUser(@Body() body: CreateUserDto, @Session() session: any){
+        const user = await this.authService.signin(body.email, body.password);
+        session.userId = user.id;
+        return user;
+    }
+
+    @Post("/signout")
+    signOut(@Session() session: any){
+        session.userId = null;
     }
 
     //@UseInterceptors(ClassSerializerInterceptor) //o interceptor é o que vai me permitir aplicar a regra de Exclude() que eu apliquei na entity User, de modo que antes de eu retornar o usuário aqui, o interceptor vai transformar a entity user em um plain object e remover a propriedade password
