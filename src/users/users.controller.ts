@@ -9,6 +9,7 @@ import {
     Query,
     NotFoundException,
     Session,
+    UseGuards
 } from '@nestjs/common';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
@@ -18,6 +19,7 @@ import { UserDto } from './dtos/user.dto';
 import { AuthService } from './auth.service';
 import {CurrentUser} from "../users/decorators/current-user.decorator";
 import {User} from "../users/users.entity";
+import {AuthGuard} from "../guards/auth.guard";
 
 @Controller('auth')
 @Serialize(UserDto) //ao invés de colocar meu interceptor em cima de cada request handler individualmente, posso colocar ele em cima do controlador inteiro e garantir que seja aplicado para todos os request handlers do controlador
@@ -28,11 +30,7 @@ export class UsersController {
         private authService: AuthService
     ){}
 
-    @Get("/usuario")
-    mostraUsuario(@Session() session: any){
-        return this.usersService.findOne(session.userId);
-    }
-
+    @UseGuards(AuthGuard) //estou aplicando meu guard nesse handler, assim esse handler só será executado se tiver usuário logado na sessão
     @Get("/signedin")
     getSignedInUser(@CurrentUser() user: User){ //e então meu param decorator consegue pegar o currentUser da sessão e me informar aqui
         if(!user){

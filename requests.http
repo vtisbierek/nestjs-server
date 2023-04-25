@@ -43,9 +43,5 @@ content-type: application/json
 DELETE  http://localhost:3000/auth/17
 
 
-### Mostra o usuário salvo na sessão (rota temporária)
-GET http://localhost:3000/auth/usuario
-
-
 ### Show currently signed-in user
 GET http://localhost:3000/auth/signedin
